@@ -426,12 +426,28 @@ if uploaded or use_demo:
     with st.spinner("⚙️ Analyzing downtime patterns..."):
         downtime = analyze_downtime(df)
 
-    with st.spinner("🧠 Normalizing failure descriptions..."):
+   st.markdown("🧠 **Normalizing failure descriptions...**")
+    try:
         normalizer = SmartNormalizer(
             mode=selected_mode,
             industry=selected_industry,
             api_key=api_key if api_key else None,
         )
+        descriptions = df["description"].tolist() if "description" in df.columns else []
+        
+        if selected_mode in ["online", "hybrid"] and api_key:
+            progress_bar = st.progress(0, text="Processing descriptions with AI...")
+            def update_progress(done, total):
+                progress_bar.progress(done / total, text=f"AI processing: {done}/{total} descriptions")
+            norm_results = normalizer.normalize(descriptions, progress_callback=update_progress)
+            progress_bar.empty()
+        else:
+            norm_results = normalizer.normalize(descriptions)
+        
+        norm_summary = normalizer.get_summary(norm_results)
+    except Exception as e:
+        st.warning(f"AI normalization encountered an error: {str(e)[:100]}. Falling back to offline mode.")
+        normalizer = SmartNormalizer(mode="offline", industry=selected_industry)
         descriptions = df["description"].tolist() if "description" in df.columns else []
         norm_results = normalizer.normalize(descriptions)
         norm_summary = normalizer.get_summary(norm_results)
@@ -447,6 +463,7 @@ if uploaded or use_demo:
 
     # ============================================================
     # DASHBOARD
+
     # ============================================================
 
     # Top metrics
