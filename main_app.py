@@ -426,7 +426,7 @@ if uploaded or use_demo:
     with st.spinner("⚙️ Analyzing downtime patterns..."):
         downtime = analyze_downtime(df)
 
-   st.markdown("🧠 **Normalizing failure descriptions...**")
+    st.markdown("🧠 **Normalizing failure descriptions...**")
     try:
         normalizer = SmartNormalizer(
             mode=selected_mode,
