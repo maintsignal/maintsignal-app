@@ -134,7 +134,7 @@ def generate_failure_code_library(df, industry="general_manufacturing", desc_col
         ai_categories = norm_results["category"].value_counts().to_dict()
     
     # Analyze descriptions for common themes
-    descriptions = df[desc_col].astype(str).str.lower().tolist() if desc_col in df.columns else []
+    descriptions = [str(x).lower() for x in df[desc_col].tolist() if pd.notna(x) and str(x).strip()] if desc_col in df.columns else []
     
     # Theme detection keywords
     themes = {
@@ -309,7 +309,7 @@ def analyze_knowledge_gaps(df, desc_col="description"):
     if desc_col not in df.columns:
         return gaps
     
-    descriptions = df[desc_col].astype(str).tolist()
+    descriptions = [str(x) for x in df[desc_col].tolist() if pd.notna(x) and str(x).strip()]
     gaps["total_analyzed"] = len(descriptions)
     
     vague_patterns = [
@@ -319,7 +319,7 @@ def analyze_knowledge_gaps(df, desc_col="description"):
     ]
     
     for desc in descriptions:
-        desc_lower = desc.lower().strip()
+        desc_lower = str(desc).lower().strip()
         
         # Too short (under 10 characters)
         if len(desc_lower) < 10:
