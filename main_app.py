@@ -300,8 +300,8 @@ st.markdown('<div class="sec-title">Upload Your Plant Data</div>', unsafe_allow_
 col_up, col_info = st.columns([3, 1])
 with col_up:
     uploaded = st.file_uploader(
-        "Drop your file here — CSV, Excel, or PDF",
-        type=["csv", "xlsx", "xls", "xlsm", "pdf"],
+        "Drop your file here — CSV, Excel, PDF, or JSON",
+        type=["csv", "xlsx", "xls", "xlsm", "pdf", "json", "tsv"],
         help="We accept work order exports from any maintenance system: SAP, Maximo, Oracle, MaintainX, UpKeep, Fiix, or any spreadsheet."
     )
 with col_info:
@@ -389,15 +389,20 @@ if uploaded or use_demo:
     st.markdown('<div class="sec-label">Step 2 — Auto-Detected</div>', unsafe_allow_html=True)
     st.markdown('<div class="sec-title">Column Mapping</div>', unsafe_allow_html=True)
 
-    with st.expander("📋 View Column Mapping", expanded=False):
+    with st.expander("📋 View Column Mapping (with confidence scores)", expanded=False):
         if ingestion.mapping:
+            from knowledge_base import guess_column_mapping
+            raw_conf = guess_column_mapping(list(ingestion.mapping.keys()))
             for original, standard in sorted(ingestion.mapping.items()):
+                conf = raw_conf.get(original, {}).get("confidence", 0)
+                conf_color = "#00e68a" if conf >= 80 else "#ff9f43" if conf >= 50 else "#ff4d6a"
+                conf_label = "High" if conf >= 80 else "Medium" if conf >= 50 else "Low"
                 st.markdown(f"""
                 <div class="mapping-row">
                     <span style="color:#6b7394; min-width:200px;">{original}</span>
                     <span class="mapping-arrow">→</span>
                     <span style="color:#e8eaf0;">{standard}</span>
-                    <span class="tag tag-green">auto</span>
+                    <span style="font-family:'JetBrains Mono';color:{conf_color};font-size:0.75rem;margin-left:0.5rem;">{conf:.0f}% {conf_label}</span>
                 </div>
                 """, unsafe_allow_html=True)
 
