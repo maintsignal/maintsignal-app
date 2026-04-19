@@ -187,7 +187,7 @@ def analyze_root_cause_correlations(df, date_col="created_date", asset_col="asse
     # 3. CO-OCCURRING FAILURES - Different assets failing on same day
     # ============================================================
     daily_failures = work.groupby(work[date_col].dt.date).apply(
-        lambda x: list(zip(x[asset_col].fillna("").astype(str), x[cat_col].fillna("").astype(str)))
+        lambda x: list(zip(x[asset_col].astype(str), x[cat_col].astype(str)))
     )
     
     co_occurrence_counts = Counter()
@@ -205,7 +205,7 @@ def analyze_root_cause_correlations(df, date_col="created_date", asset_col="asse
                     
                     if asset_a != asset_b:
                         # Normalize order for consistent counting
-                        pair = tuple(sorted([(str(asset_a), str(cat_a)), (str(asset_b), str(cat_b))]))
+                        pair = tuple(sorted([(asset_a, cat_a), (asset_b, cat_b)]))
                         co_occurrence_counts[pair] += 1
                         
                         if len(co_occurrence_examples[pair]) < 2:

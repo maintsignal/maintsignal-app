@@ -16,6 +16,7 @@ import json
 from knowledge_base import INDUSTRY_TAXONOMIES, get_failure_taxonomy, GLOBAL_ABBREVIATIONS
 from data_ingestion import DataIngestor, IngestionResult
 from smart_normalizer import SmartNormalizer
+from learning_loop import save_classification_results, get_learning_stats, save_correction, get_few_shot_examples_from_corrections
 from spare_parts_analysis import analyze_spare_parts_costs
 from industry_benchmarking import calculate_client_metrics, benchmark_against_industry, INDUSTRY_BENCHMARKS
 from root_cause_correlation import analyze_root_cause_correlations, generate_correlation_summary
@@ -1530,6 +1531,19 @@ if uploaded or use_demo:
                     st.bar_chart(trend_df.set_index("Period"))
 
         # ============================================================
+    # LEARNING LOOP - Auto-save results
+    # ============================================================
+    try:
+        save_classification_results(
+            norm_results, 
+            industry=selected_industry, 
+            client_name=client_name,
+            source_file=uploaded_file.name if uploaded_file else "demo_data"
+        )
+    except Exception as e:
+        pass  # Don't break the app if learning save fails
+
+    # ============================================================
     # EXPORT
     # ============================================================
     st.markdown("---")
