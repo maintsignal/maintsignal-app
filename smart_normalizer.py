@@ -237,6 +237,81 @@ class SmartNormalizer:
 
     def _keyword_classify(self, text):
         """
+        Multi-signal keyword classification.
+        Scores description against ALL categories and picks highest.
+        Much smarter than single-keyword matching.
+        """
+        if not text or not isinstance(text, str):
+            return NormalizationResult(
+                original=text or "", interpretation="", category="Unknown",
+                component="unknown", confidence="low", method="keyword"
+            )
+
+        expanded = self.expand_abbreviations(text)
+        text_lower = text.lower().strip()
+        exp_lower = expanded.lower().strip() if expanded else text_lower
+
+        # Score against all categories using multi-signal matching
+        scores = {}
+        best_component = "unknown"
+
+        for category, patterns in self.keyword_rules.items():
+            score = 0.0
+            matched_comp = "unknown"
+
+            # Primary keywords = strong signal (3 points each)
+            for kw in patterns.get("primary", []):
+                if kw.lower() in exp_lower or kw.lower() in text_lower:
+                    score += 3.0
+
+            # Secondary keywords = supporting signal (1.5 points each)
+            for kw in patterns.get("secondary", []):
+                if kw.lower() in exp_lower or kw.lower() in text_lower:
+                    score += 1.5
+
+            # Component keywords = bonus signal (1 point each)
+            for comp in patterns.get("components", []):
+                if comp.lower() in exp_lower or comp.lower() in text_lower:
+                    score += 1.0
+                    matched_comp = comp
+
+            if score > 0:
+                scores[category] = {"score": score, "component": matched_comp}
+
+        if not scores:
+            return NormalizationResult(
+                original=text, interpretation=expanded,
+                category="Unknown", component="unknown",
+                confidence="low", method="keyword"
+            )
+
+        # Pick highest scoring category
+        best_cat = max(scores, key=lambda x: scores[x]["score"])
+        best_score = scores[best_cat]["score"]
+        best_component = scores[best_cat]["component"]
+
+        # Determine confidence based on score and margin
+        sorted_scores = sorted(scores.values(), key=lambda x: x["score"], reverse=True)
+        if best_score >= 4.5:
+            confidence = "high"
+        elif best_score >= 3.0:
+            if len(sorted_scores) >= 2 and sorted_scores[1]["score"] >= best_score * 0.7:
+                confidence = "medium"
+            else:
+                confidence = "high"
+        elif best_score >= 1.5:
+            confidence = "medium"
+        else:
+            confidence = "low"
+
+        return NormalizationResult(
+            original=text, interpretation=expanded,
+            category=best_cat, component=best_component,
+            confidence=confidence, method="keyword"
+        )
+
+    def _keyword_classify_OLD_REMOVED(self, text):
+        """
         Classify a single description using keyword rules.
         Returns NormalizationResult.
         """

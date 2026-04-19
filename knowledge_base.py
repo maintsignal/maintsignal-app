@@ -605,13 +605,47 @@ def build_normalization_prompt(descriptions, industry=None, client_abbreviations
     if industry and industry in INDUSTRY_TAXONOMIES:
         industry_name = INDUSTRY_TAXONOMIES[industry]["name"]
 
-    prompt = f"""You are a senior maintenance & reliability engineer with 20+ years of experience in {industry_name}. You specialize in analyzing CMMS work order data.
+    # Get few-shot examples for this industry
+    few_shot_examples = {
+        "pharmaceutical": [
+            {"original": "REPL mech seal P-101 lkg", "category": "Seal / Packing Failure", "component": "mechanical seal", "confidence": "high"},
+            {"original": "CIP valve stuck closed prod line 2", "category": "Valve / Actuator Failure", "component": "CIP valve", "confidence": "high"},
+            {"original": "PM per SOP-M-042", "category": "Preventive Maintenance", "component": "N/A", "confidence": "high"},
+            {"original": "fixed it", "category": "Unknown", "component": "unknown", "confidence": "low"},
+        ],
+        "oil_and_gas": [
+            {"original": "PSV popped reset @ 150psi", "category": "Valve / Actuator Failure", "component": "pressure safety valve", "confidence": "high"},
+            {"original": "pump P-2201A high vib DE brg", "category": "Bearing Failure", "component": "drive end bearing", "confidence": "high"},
+            {"original": "annual API 510 inspection", "category": "Preventive Maintenance", "component": "pressure vessel", "confidence": "high"},
+            {"original": "same problem again", "category": "Unknown", "component": "unknown", "confidence": "low"},
+        ],
+        "general_manufacturing": [
+            {"original": "BRG noise conv DE side", "category": "Bearing Failure", "component": "drive end bearing", "confidence": "high"},
+            {"original": "MTR tripped on O/L", "category": "Motor / Drive Failure", "component": "motor", "confidence": "high"},
+            {"original": "replaced filters and lubed bearings", "category": "Preventive Maintenance", "component": "filters and bearings", "confidence": "high"},
+            {"original": "done", "category": "Unknown", "component": "unknown", "confidence": "low"},
+        ],
+    }
+    examples = few_shot_examples.get(industry or "general_manufacturing", few_shot_examples["general_manufacturing"])
+    examples_str = "\n".join(
+        f'    Input: "{ex["original"]}" -> Category: {ex["category"]}, Component: {ex["component"]}, Confidence: {ex["confidence"]}'
+        for ex in examples
+    )
+
+    prompt = f"""You are a senior maintenance & reliability engineer with 20+ years of experience in {industry_name}. You specialize in CMMS work order data classification.
 
 CONTEXT:
-These are real technician-written work order descriptions from a {industry_name} plant. Technicians write under time pressure, use heavy abbreviations, shorthand, and plant-specific jargon. The same failure can be described dozens of different ways.
+These are real technician-written work order descriptions from a {industry_name} facility. Technicians write under extreme time pressure using heavy abbreviations, shorthand, and inconsistent spelling.
 
-YOUR TASK:
-Classify each description into exactly ONE failure category. Extract the affected component. Expand all abbreviations in your interpretation.
+YOUR REASONING PROCESS FOR EACH DESCRIPTION:
+1. EXPAND all abbreviations to full words
+2. IDENTIFY the root failure mode (what BROKE, not what was DONE to fix it)
+3. IDENTIFY the specific component affected
+4. CLASSIFY into exactly ONE failure category
+5. ASSESS confidence based on how clear the description is
+
+EXAMPLES OF CORRECT CLASSIFICATION:
+{examples_str}
 
 FAILURE CATEGORIES (use these exact names):
 {taxonomy_str}
@@ -622,13 +656,15 @@ COMMON ABBREVIATIONS (non-exhaustive — use your expertise for unlisted ones):
 WORK ORDER DESCRIPTIONS TO CLASSIFY:
 {numbered}
 
-RULES:
-1. Classify based on the ROOT FAILURE, not the repair action. "Replaced bearing" = Bearing Failure, not "Replacement."
-2. If a description mentions multiple issues, classify by the PRIMARY failure.
-3. "PM", "inspection", "routine", "scheduled" = Preventive Maintenance unless a specific failure is described.
-4. Empty, nonsensical, or single-word descriptions with no failure context = "Preventive Maintenance" if it seems routine, otherwise flag as "Unknown."
-5. Expand ALL abbreviations in the "interpretation" field.
-6. If unsure between two categories, pick the more specific one.
+CLASSIFICATION RULES:
+1. Classify by ROOT FAILURE, not repair action. "Replaced bearing" = Bearing Failure. "Replaced seal" = Seal Failure.
+2. If description mentions BOTH a failure AND PM activity, classify as the FAILURE.
+3. Multiple failures mentioned = classify by the PRIMARY/first failure.
+4. Pure PM/inspection/routine/scheduled with NO failure = "Preventive Maintenance".
+5. Vague descriptions ("fixed it", "done", "ok") with no component = "Unknown" with LOW confidence.
+6. "Replaced" or "changed" implies something failed - classify by what was replaced.
+7. Expand ALL abbreviations in the interpretation field.
+8. If unsure between two categories, pick the more SPECIFIC one.
 
 RESPOND WITH ONLY a JSON array. No other text, no markdown, no explanation:
 [
