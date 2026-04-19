@@ -257,11 +257,10 @@ class DataIngestor:
         """Auto-detect column mapping using the knowledge base."""
         raw_mapping = guess_column_mapping(columns)
 
-        # Convert to simple {original: standard} format
         mapping = {}
+        self._mapping_confidence = {}
         used_standards = set()
 
-        # Sort by confidence (highest first) to avoid conflicts
         sorted_items = sorted(
             raw_mapping.items(),
             key=lambda x: x[1]["confidence"],
@@ -270,8 +269,10 @@ class DataIngestor:
 
         for original, match in sorted_items:
             standard = match["maps_to"]
+            confidence = match["confidence"]
             if standard not in used_standards:
                 mapping[original] = standard
+                self._mapping_confidence[original] = round(confidence, 1)
                 used_standards.add(standard)
 
         return mapping

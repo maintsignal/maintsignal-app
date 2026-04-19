@@ -501,8 +501,23 @@ if uploaded or use_demo:
         <span class="tag tag-blue">{ind_info.get('name', selected_industry)}</span>
         <span class="tag tag-green">{norm_mode}</span>
         <span class="tag tag-orange">{ingestion.file_type.upper()} Import</span>
+        <span class="tag" style="background:rgba(0,232,122,.08);color:#00e68a;">{len(ingestion.mapping)} columns mapped</span>
     </div>
     """, unsafe_allow_html=True)
+
+    # Column mapping with confidence scores
+    if hasattr(ingestion, 'mapping_confidence') and ingestion.mapping_confidence:
+        with st.expander("Column Mapping Details", expanded=False):
+            for orig_col, std_col in ingestion.mapping.items():
+                conf = ingestion.mapping_confidence.get(orig_col, 0)
+                conf_color = "#00e68a" if conf >= 80 else "#ff9f43" if conf >= 50 else "#ff4d6a"
+                conf_label = "High" if conf >= 80 else "Medium" if conf >= 50 else "Low"
+                st.markdown(f"""
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:0.3rem 0;border-bottom:1px solid #1c2436;font-size:0.82rem;">
+                    <div><span style="color:#6b7394;">{orig_col}</span> → <strong style="color:#e8eaf0;">{std_col}</strong></div>
+                    <span style="font-family:monospace;color:{conf_color};font-size:0.75rem;">{conf_label} ({conf}%)</span>
+                </div>
+                """, unsafe_allow_html=True)
 
     # Tabs
     tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([

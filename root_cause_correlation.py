@@ -205,7 +205,7 @@ def analyze_root_cause_correlations(df, date_col="created_date", asset_col="asse
                     
                     if asset_a != asset_b:
                         # Normalize order for consistent counting
-                        pair = tuple(sorted([(asset_a, cat_a), (asset_b, cat_b)]))
+                        pair = ((str(asset_a), str(cat_a)), (str(asset_b), str(cat_b)))
                         co_occurrence_counts[pair] += 1
                         
                         if len(co_occurrence_examples[pair]) < 2:
