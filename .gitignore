@@ -2,3 +2,4 @@ venv/
 *.csv
 *.pdf
 __pycache__/
+test_api.py
