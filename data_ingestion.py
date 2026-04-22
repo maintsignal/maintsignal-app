@@ -14,6 +14,8 @@ Usage:
 """
 
 import pandas as pd
+import json as json_lib
+import xml.etree.ElementTree as ET
 import numpy as np
 import os
 import re
@@ -251,6 +253,64 @@ class DataIngestor:
 
         except Exception as e:
             result.warnings.append(f"Error reading PDF: {str(e)}")
+            return None
+
+
+    def _read_json(self, file_obj):
+        """Read JSON file - supports array of objects or nested structures."""
+        try:
+            raw = json_lib.load(file_obj)
+            
+            # Handle different JSON structures
+            if isinstance(raw, list):
+                # Array of objects - most common
+                return pd.DataFrame(raw)
+            elif isinstance(raw, dict):
+                # Check for nested data key
+                for key in ["data", "records", "work_orders", "workorders", "items", "results"]:
+                    if key in raw and isinstance(raw[key], list):
+                        return pd.DataFrame(raw[key])
+                # Single level dict - wrap in list
+                return pd.DataFrame([raw])
+            else:
+                return None
+        except Exception as e:
+            return None
+
+    def _read_xml(self, file_obj):
+        """Read XML file - extracts records from repeating elements."""
+        try:
+            tree = ET.parse(file_obj)
+            root = tree.getroot()
+            
+            # Find repeating child elements (work orders, records, etc.)
+            # Use the most common child tag
+            child_tags = {}
+            for child in root:
+                tag = child.tag.split("}")[-1] if "}" in child.tag else child.tag
+                child_tags[tag] = child_tags.get(tag, 0) + 1
+            
+            if not child_tags:
+                return None
+            
+            # Use the most frequent tag as the record element
+            record_tag = max(child_tags, key=child_tags.get)
+            
+            records = []
+            for elem in root.iter():
+                tag = elem.tag.split("}")[-1] if "}" in elem.tag else elem.tag
+                if tag == record_tag:
+                    record = {}
+                    for child in elem:
+                        child_tag = child.tag.split("}")[-1] if "}" in child.tag else child.tag
+                        record[child_tag] = child.text
+                    if record:
+                        records.append(record)
+            
+            if records:
+                return pd.DataFrame(records)
+            return None
+        except Exception as e:
             return None
 
     def _auto_map_columns(self, columns):
