@@ -8,6 +8,7 @@ Run: streamlit run main_app.py
 
 import streamlit as st
 import os
+import tempfile
 import pandas as pd
 import numpy as np
 from datetime import datetime
